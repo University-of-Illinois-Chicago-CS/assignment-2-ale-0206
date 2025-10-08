@@ -8,6 +8,13 @@ var vertexCount = 0;
 var uniformModelViewLoc = null;
 var uniformProjectionLoc = null;
 var heightmapData = null;
+var yRotation = 0;
+var zRotation = 0;
+var zoom = 1.0;
+var heightScale = 1.0;
+var projectionType = 'perspective';
+var xPan = 0.0;
+var yPan = 0.0;
 
 function processImage(img)
 {
@@ -53,8 +60,6 @@ function processImage(img)
 	};
 }
 
-// ===============================
-// start task 1
 function triangleMeshConverter(height, width, heightData)
 {
     var positions = []; var colors = [];
@@ -62,30 +67,32 @@ function triangleMeshConverter(height, width, heightData)
     for (let y = 0; y < height - 1; y++) {
         for (let x = 0; x < width - 1; x++) {
 
-            var h00 = heightData[y * width + x];
-            var h10 = heightData[y * width + (x + 1)];
-            var h01 = heightData[(y + 1) * width + x];
-            var h11 = heightData[(y + 1) * width + (x + 1)];
+            var heightTL = heightData[(y * width) + x];
+            var heightTR = heightData[(y * width) + (x + 1)];
+            var heightBL = heightData[((y + 1) * width) + x];
+            var heightBR = heightData[((y + 1) * width) + (x + 1)];
+            var xL = ((x / width) - 0.5) * 2.0;
+			var zT = ((y / height) - 0.5) * 2.0;
+            var xR = (((x + 1) / width) - 0.5) * 2.0;
+            var zB = (((y + 1) / height) - 0.5) * 2.0;
 
-            var x0 = (x / width - 0.5) * 2.0;
-            var x1 = ((x + 1) / width - 0.5) * 2.0;
-            var z0 = (y / height - 0.5) * 2.0;
-            var z1 = ((y + 1) / height - 0.5) * 2.0;
+            var triangle1 = [
+                xL, heightTL, zT,
+                xL, heightBL, zB,
+                xR, heightTR, zT
+            ];
 
-            positions.push(
-                x0, h00, z0,
-                x0, h01, z1,
-                x1, h10, z0
-            );
+            var triangle2 = [
+                xR, heightTR, zT,
+                xL, heightBL, zB,
+                xR, heightBR, zB
+            ];
 
-            positions.push(
-                x1, h10, z0,
-                x0, h01, z1,
-                x1, h11, z1
-            );
+            positions.push(...triangle1);
+			positions.push(...triangle2);
 
             for (let i = 0; i < 6; i++) {
-                var vertexHeight = [h00, h01, h10, h10, h01, h11][i];
+                var vertexHeight = [heightTL, heightBL, heightTR, heightTR, heightBL, heightBR][i];
                 colors.push(vertexHeight, vertexHeight, vertexHeight); 
             }
         }
@@ -98,8 +105,6 @@ function triangleMeshConverter(height, width, heightData)
     }
 }
 
-// ===============================
-// end task 1
 
 
 window.loadImageFile = function(event)
@@ -118,19 +123,6 @@ window.loadImageFile = function(event)
 		{
 			// heightmapData is globally defined
 			heightmapData = processImage(img);
-			
-			/*
-				TODO: using the data in heightmapData, create a triangle mesh
-					heightmapData.data: array holding the actual data, note that 
-					this is a single dimensional array the stores 2D data in row-major order
-
-					heightmapData.width: width of map (number of columns)
-					heightmapData.height: height of the map (number of rows)
-			*/
-
-			// ===============================
-			// start task 1
-
 			var height = heightmapData.height;
 			var width = heightmapData.width;
 			var heightData = heightmapData.data;
@@ -142,9 +134,6 @@ window.loadImageFile = function(event)
 
 			const positionAttribLoc = gl.getAttribLocation(program, "position");
 			vao = createVAO(gl, positionAttribLoc, positionBuffer, null, null, null, null);
-
-			// ===============================
-			// end task 1
 
 			console.log('loaded image: ' + heightmapData.width + ' x ' + heightmapData.height);
 
@@ -174,6 +163,8 @@ function setupViewMatrix(eye, target)
     return view;
 
 }
+
+
 function draw()
 {
 
@@ -182,13 +173,25 @@ function draw()
 	var nearClip = 0.001;
 	var farClip = 20.0;
 
-	// perspective projection
-	var projectionMatrix = perspectiveMatrix(
-		fovRadians,
-		aspectRatio,
-		nearClip,
-		farClip,
-	);
+
+	var projectionMatrix;
+	if (projectionType === 'perspective') {
+		projectionMatrix = perspectiveMatrix(
+			fovRadians,
+			aspectRatio,
+			nearClip,
+			farClip,
+		);
+	} else {
+		var halfHeight = 2.0 / zoom;
+		var halfWidth = halfHeight * aspectRatio;
+		var left = -halfWidth;
+		var right = halfWidth;
+		var bottom = -halfHeight;
+		var top = halfHeight;
+
+		projectionMatrix = orthographicMatrix(left, right, bottom, top, nearClip, farClip);
+	}
 
 	// eye and target
 	var eye = [0, 5, 5];
@@ -197,6 +200,14 @@ function draw()
 	var modelMatrix = identityMatrix();
 
 	// TODO: set up transformations to the model
+
+	var modelMatrix = multiplyArrayOfMatrices([
+		translateMatrix(xPan, yPan, 0.0),
+		scaleMatrix(1.0, heightScale, 1.0),
+		scaleMatrix(zoom, zoom, zoom),
+		rotateYMatrix(yRotation),
+		rotateZMatrix(zRotation)
+	]);
 
 	// setup viewing matrix
 	var eyeToTarget = subtract(target, eye);
@@ -213,7 +224,7 @@ function draw()
 	gl.disable(gl.CULL_FACE);
 
 	gl.clearColor(0.2, 0.2, 0.2, 1);
-	gl.clear(gl.COLOR_BUFFER_BIT);
+	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 	gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 	gl.useProgram(program);
@@ -323,9 +334,11 @@ function addMouseCallback(canvas)
 
 		if (e.deltaY < 0) 
 		{
+			zoom *= 1.1;
 			console.log("Scrolled up");
 			// e.g., zoom in
 		} else {
+			zoom *= 0.9;
 			console.log("Scrolled down");
 			// e.g., zoom out
 		}
@@ -338,6 +351,18 @@ function addMouseCallback(canvas)
 
 		var deltaX = currentX - startX;
 		var deltaY = currentY - startY;
+
+		startX = currentX;
+		startY = currentY;
+
+		if (leftMouse) {
+			yRotation += deltaX * 0.01;
+			zRotation += deltaY * 0.01;
+		} else {
+			xPan += deltaX * 0.01;
+			yPan -= deltaY * 0.01;
+		}
+
 		console.log('mouse drag by: ' + deltaX + ', ' + deltaY);
 
 		// implement dragging logic
@@ -362,6 +387,15 @@ function initialize()
 
 	// add mouse callbacks
 	addMouseCallback(canvas);
+
+	document.getElementById("height").addEventListener("input", (e) => {
+		var heightVal = parseFloat(e.target.value);
+		heightScale = heightVal / 50.0;
+	});
+
+	document.getElementById("projectionType").addEventListener("change", (e) => {
+		projectionType = e.target.value;
+	});
 
 	var box = createBox();
 	vertexCount = box.positions.length / 3;		// vertexCount is global variable used by draw()
