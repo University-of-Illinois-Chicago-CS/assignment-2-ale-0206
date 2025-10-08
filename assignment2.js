@@ -53,6 +53,54 @@ function processImage(img)
 	};
 }
 
+// ===============================
+// start task 1
+function triangleMeshConverter(height, width, heightData)
+{
+    var positions = []; var colors = [];
+
+    for (let y = 0; y < height - 1; y++) {
+        for (let x = 0; x < width - 1; x++) {
+
+            var h00 = heightData[y * width + x];
+            var h10 = heightData[y * width + (x + 1)];
+            var h01 = heightData[(y + 1) * width + x];
+            var h11 = heightData[(y + 1) * width + (x + 1)];
+
+            var x0 = (x / width - 0.5) * 2.0;
+            var x1 = ((x + 1) / width - 0.5) * 2.0;
+            var z0 = (y / height - 0.5) * 2.0;
+            var z1 = ((y + 1) / height - 0.5) * 2.0;
+
+            positions.push(
+                x0, h00, z0,
+                x0, h01, z1,
+                x1, h10, z0
+            );
+
+            positions.push(
+                x1, h10, z0,
+                x0, h01, z1,
+                x1, h11, z1
+            );
+
+            for (let i = 0; i < 6; i++) {
+                var vertexHeight = [h00, h01, h10, h10, h01, h11][i];
+                colors.push(vertexHeight, vertexHeight, vertexHeight); 
+            }
+        }
+    }
+
+    return {
+        positions: new Float32Array(positions),
+        colors: new Float32Array(colors),
+        count: positions.length / 3
+    }
+}
+
+// ===============================
+// end task 1
+
 
 window.loadImageFile = function(event)
 {
@@ -79,6 +127,25 @@ window.loadImageFile = function(event)
 					heightmapData.width: width of map (number of columns)
 					heightmapData.height: height of the map (number of rows)
 			*/
+
+			// ===============================
+			// start task 1
+
+			var height = heightmapData.height;
+			var width = heightmapData.width;
+			var heightData = heightmapData.data;
+
+			const mesh = triangleMeshConverter(height, width, heightData);
+			vertexCount = mesh.count;
+
+			const positionBuffer = createBuffer(gl, gl.ARRAY_BUFFER, mesh.positions);
+
+			const positionAttribLoc = gl.getAttribLocation(program, "position");
+			vao = createVAO(gl, positionAttribLoc, positionBuffer, null, null, null, null);
+
+			// ===============================
+			// end task 1
+
 			console.log('loaded image: ' + heightmapData.width + ' x ' + heightmapData.height);
 
 		};
