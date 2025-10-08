@@ -7,7 +7,7 @@
 <link rel="shortcut icon" href="#">
 <style>
     body { 
-        background-color: rgb(150, 150, 150);
+        background-color: rgb(86, 55, 88);
         font-family: Arial, Helvetica, sans-serif;
     }
     #glcanvas {
@@ -24,11 +24,11 @@
         left: 5px;
         top: 5px;
         text-align: center;
-        background-color: #001d62bd;
+        background-color: #f29bffbd;
         color: white;
         border-style: solid;
-        border-color: black;
-        border-width: 2px;
+        border-color: rgb(238, 129, 255);
+        border-width: 3px;
     }
 </style>
 <body>
@@ -38,21 +38,17 @@
     <div id="config">
         <table>
             <tr>
-                <td>Y Rotation</td>
-                <td><input id="rotation" type="range" min="0" max="360" value="0">
-                </td>
-            </tr>
-
-            <tr>
-                <td>Zoom</td>
-                <td><input value="0" id="scale" type="range" min="0" max="200" value="0">
-                </td>
-            </tr>
-
-
-            <tr>
                 <td>height</td>
                 <td><input value="50" id="height" type="range" min="0" max="100" value="0">
+                </td>
+            </tr>
+
+            <tr>
+                <td>Projection</td>
+                <td> <select id="projectionType">
+                        <option value="perspective">Perspective</option>
+                        <option value="orthographic">Orthographic</option>
+                     </select>
                 </td>
             </tr>
 
